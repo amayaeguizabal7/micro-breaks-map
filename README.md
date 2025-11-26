@@ -81,14 +81,17 @@ Si prefieres hacerlo manualmente en la plataforma de desarrolladores:
 
 Si quieres usar el MCP desde cualquier lugar sin tener tu ordenador encendido:
 
-1.  Sube el contenido de `mcp-server` a un repo de GitHub.
+1.  Sube el contenido a GitHub (ya lo hemos hecho).
 2.  Crea un **Web Service** en [Render](https://render.com).
-3.  Conecta tu repo.
-4.  Configuración:
-    -   **Runtime**: Docker
-    -   **Region**: Frankfurt (o la más cercana)
-5.  Render te dará una URL (ej: `https://mi-mcp.onrender.com`).
-6.  En ChatGPT (Developer Mode), configura la App:
-    -   **Backend URL**: `https://mi-mcp.onrender.com/sse`
-
-> **Nota**: He actualizado el código del servidor para usar SSE (Server-Sent Events) en lugar de `stdio`, así que está listo para la web.
+3.  Conecta tu repo `micro-breaks-map`.
+4.  **Configuración Importante**:
+    -   **Name**: `micro-breaks-mcp` (o lo que quieras).
+    -   **Runtime**: **Docker**.
+    -   **Root Directory**: `mcp-server` (¡Muy importante! El Dockerfile está ahí dentro).
+    -   **Region**: Frankfurt (o la más cercana).
+    -   **Plan**: Free.
+5.  Dale a "Create Web Service".
+6.  Espera a que termine el despliegue (puede tardar unos minutos).
+7.  Copia la URL que te da (ej: `https://micro-breaks-mcp.onrender.com`).
+8.  En ChatGPT (Developer Mode), configura la App:
+    -   **Backend URL**: `https://micro-breaks-mcp.onrender.com/sse` (Añade `/sse` al final).
