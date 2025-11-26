@@ -1,0 +1,15 @@
+{
+    "schema_version": "1.0",
+    "name_for_model": "micro_breaks_map",
+    "name_for_human": "Micro Breaks Map",
+    "description_for_model": "Help users find micro-breaks nearby. Use find_break_spots to get places, generate_walk_route for walks, and suggest_soundtrack for music.",
+    "description_for_human": "Encuentra micro-experiencias para desconectar cerca de ti.",
+    "api": {
+        "type": "mcp",
+        "url": "stdio"
+    },
+    "ui": {
+        "type": "webview",
+        "url": "http://localhost:5173"
+    }
+}
