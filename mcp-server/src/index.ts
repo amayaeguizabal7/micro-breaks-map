@@ -279,24 +279,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // --- Express Server Setup for SSE ---
 
+// Store active transports by sessionId (if we could extract it) or just keep the latest for now
+// Ideally we would parse the sessionId from the URL in /messages
 let transport: SSEServerTransport;
-
-app.get("/", (req, res) => {
-    res.send("Micro Breaks MCP Server is running 🚀. Use /sse for ChatGPT connection.");
-});
 
 app.get("/sse", async (req, res) => {
     console.log("New SSE connection");
+
+    // Create new transport
     transport = new SSEServerTransport("/messages", res);
+
+    // Connect the server to this transport
     await server.connect(transport);
+
+    // Send a keep-alive comment every 15 seconds to prevent Render/Nginx timeouts
+    const keepAlive = setInterval(() => {
+        if (res.writableEnded) {
+            clearInterval(keepAlive);
+            return;
+        }
+        res.write(":\n\n");
+    }, 15000);
+
+    req.on("close", () => {
+        console.log("SSE connection closed");
+        clearInterval(keepAlive);
+        // Optional: server.close() if we want to clean up, but for now keep it simple
+    });
 });
 
 app.post("/messages", async (req, res) => {
+    console.log("Received message on /messages");
     if (!transport) {
+        console.error("No active transport");
         res.sendStatus(400);
         return;
     }
-    await transport.handlePostMessage(req, res);
+    try {
+        await transport.handlePostMessage(req, res);
+    } catch (error) {
+        console.error("Error handling message:", error);
+        res.sendStatus(500);
+    }
 });
 
 const PORT = process.env.PORT || 3000;
