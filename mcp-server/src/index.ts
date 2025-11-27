@@ -280,8 +280,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // --- Express Server Setup for SSE ---
 
-// Store active transports by sessionId
-const transports = new Map<string, SSEServerTransport>();
+let transport: SSEServerTransport;
 
 app.get("/", (req, res) => {
     res.send("Micro Breaks MCP Server is running 🚀. Use /sse for ChatGPT connection.");
@@ -295,12 +294,8 @@ app.get("/sse", async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disables Nginx buffering on Render
 
-    const sessionId = crypto.randomUUID();
-    console.log(`Created session: ${sessionId}`);
-
-    // Create new transport with session-specific endpoint
-    const transport = new SSEServerTransport(`/messages?sessionId=${sessionId}`, res);
-    transports.set(sessionId, transport);
+    // Create new transport (Global for simplicity, last connection wins)
+    transport = new SSEServerTransport("/messages", res);
 
     // Connect the server to this transport
     await server.connect(transport);
@@ -315,24 +310,18 @@ app.get("/sse", async (req, res) => {
     }, 15000);
 
     req.on("close", () => {
-        console.log(`SSE connection closed for session: ${sessionId}`);
-        transports.delete(sessionId);
+        console.log("SSE connection closed");
         clearInterval(keepAlive);
     });
 });
 
 app.post("/messages", async (req, res) => {
-    const sessionId = req.query.sessionId as string;
-    console.log(`Received message for session: ${sessionId}`);
-
-    const transport = transports.get(sessionId);
-
+    console.log("Received message on /messages");
     if (!transport) {
-        console.error(`No active transport for session: ${sessionId}`);
-        res.status(404).send("Session not found");
+        console.error("No active transport");
+        res.sendStatus(400);
         return;
     }
-
     try {
         await transport.handlePostMessage(req, res);
     } catch (error) {
