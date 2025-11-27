@@ -91,7 +91,13 @@ function App() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/widget-data');
+                // Use relative URL in production (served from same origin)
+                // Use localhost in dev (when running separate servers)
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3000/api/widget-data'
+                    : '/api/widget-data';
+
+                const response = await fetch(apiUrl);
                 const data = await response.json();
 
                 if (data.places && data.places.length > 0) {
