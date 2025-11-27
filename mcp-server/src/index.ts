@@ -137,6 +137,7 @@ app.post("/mcp", async (req, res) => {
                     ]
                 }
             });
+        } else if (method === "resources/read") {
             const uri = params.uri;
             if (uri === "ui://widget/map") {
                 // Read the HTML file
