@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+```
+import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Clock, Music, Coffee, Trees, Activity } from 'lucide-react';
@@ -64,14 +65,14 @@ function App() {
     const [mood, setMood] = useState('calmado');
 
     // Initialize from injected data or mock
-    const [places, setPlaces] = useState<Place[]>(() => {
+    const [places] = useState<Place[]>(() => {
         const data = window.__INITIAL_DATA__;
         if (Array.isArray(data)) return data; // Legacy support
         if (data && data.places) return data.places;
         return MOCK_PLACES;
     });
 
-    const [route, setRoute] = useState<RoutePoint[] | null>(() => {
+    const [route] = useState<RoutePoint[] | null>(() => {
         const data = window.__INITIAL_DATA__;
         if (!Array.isArray(data) && data && data.route) return data.route;
         return null;
@@ -140,10 +141,11 @@ function App() {
                                     <button
                                         key={m}
                                         onClick={() => setMood(m)}
-                                        className={`p-2 rounded-lg text-sm font-medium transition-all ${mood === m
-                                            ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
-                                            }`}
+                                        className={`p - 2 rounded - lg text - sm font - medium transition - all ${
+    mood === m
+    ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
+    : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
+} `}
                                     >
                                         {m.charAt(0).toUpperCase() + m.slice(1)}
                                     </button>
