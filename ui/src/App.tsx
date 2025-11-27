@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Clock, MapPin, Music, Coffee, Trees, Activity } from 'lucide-react';
+import { Clock, Music, Coffee, Trees, Activity } from 'lucide-react';
 import L from 'leaflet';
 
 // Fix for default marker icon in Leaflet with Webpack/Vite
@@ -19,183 +19,211 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 // Types
 interface Place {
+    id: number;
     name: string;
-    type: 'park' | 'quiet_cafe' | 'free_activity';
-    rating: number;
+    type: string;
+    lat: number;
+    lng: number;
     address: string;
-    estimated_walk_time: string;
-    location: { lat: number; lng: number };
+    rating: number;
+    estimated_walk_time?: string; // Optional for now
 }
 
 interface Soundtrack {
     title: string;
     description: string;
-    type: string;
-    query: string;
 }
 
 // Mock Data for initial state or fallback
 const MOCK_PLACES: Place[] = [
-    { name: "Parque del Retiro", type: "park", rating: 4.8, address: "Plaza de la Independencia", estimated_walk_time: "10 min", location: { lat: 40.4152, lng: -3.6845 } },
-    { name: "Café Murillo", type: "quiet_cafe", rating: 4.5, address: "C. Ruiz de Alarcón", estimated_walk_time: "5 min", location: { lat: 40.4143, lng: -3.6901 } }
+    { id: 1, name: "Parque del Retiro", type: "park", lat: 40.4152606, lng: -3.6844995, address: "Plaza de la Independencia, 7", rating: 4.8, estimated_walk_time: "10 min" },
+    { id: 2, name: "Café Murillo", type: "cafe", lat: 40.4143, lng: -3.6895, address: "Calle Ruiz de Alarcón, 27", rating: 4.5, estimated_walk_time: "5 min" },
+    { id: 3, name: "Real Jardín Botánico", type: "park", lat: 40.4111, lng: -3.6898, address: "Plaza de Murillo, 2", rating: 4.7, estimated_walk_time: "12 min" }
 ];
 
-const center = {
-    lat: 40.4152,
-    lng: -3.6845
-};
+const CENTER = { lat: 40.4152, lng: -3.6845 };
 
 function App() {
-    const [timeWindow, setTimeWindow] = useState(30);
+    const [timeWindow, setTimeWindow] = useState(20);
     const [mood, setMood] = useState('calmado');
-    const [places, setPlaces] = useState<Place[]>(MOCK_PLACES);
-    const [loading, setLoading] = useState(false);
-    const [coachMessage, setCoachMessage] = useState("Amaya, respira 2 min. Aquí tienes un paseíto rápido con árboles y luz cálida.");
-    const [soundtracks, setSoundtracks] = useState<Soundtrack[]>([
-        { title: "Nature Sounds", description: "Sonidos de bosque", type: "soundscape", query: "nature" }
+    const [places] = useState<Place[]>(MOCK_PLACES);
+    const [loading, setLoading] = useState(false); // Added loading state
+    const [coachMessage] = useState("Amaya, respira 2 min. Aquí tienes un paseíto rápido con árboles y luz cálida.");
+    const [soundtracks] = useState<Soundtrack[]>([
+        { title: "Nature Sounds", description: "Sonidos de bosque y lluvia" },
+        { title: "Piano Chill", description: "Piano suave para desconectar" }
     ]);
 
-    // In a real Apps SDK app, we would listen to events or use a client to fetch data from the MCP server.
-    // Since this is a UI widget, we simulate the "refresh" when controls change.
-
-    const handleRefresh = async () => {
+    // Mock loading effect
+    const handleSearch = () => {
         setLoading(true);
-        // Simulate API call delay
         setTimeout(() => {
             setLoading(false);
             // In real app, this would trigger a new MCP tool call via the ChatGPT context
-            console.log("Refreshed with", { timeWindow, mood });
+            console.log("Searching with", { timeWindow, mood });
         }, 1000);
     };
 
     return (
-        <div className="max-w-2xl mx-auto p-4 bg-white min-h-screen font-sans text-gray-800">
-            {/* Header */}
-            <header className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Micro Breaks cerca de ti</h1>
-                <p className="text-gray-500">Te propongo un plan rápido para desconectar.</p>
-            </header>
-
-            {/* Controls */}
-            <div className="bg-gray-50 p-4 rounded-xl mb-6 flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-gray-600" />
-                    <select
-                        value={timeWindow}
-                        onChange={(e) => setTimeWindow(Number(e.target.value))}
-                        className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value={10}>10 min</option>
-                        <option value={20}>20 min</option>
-                        <option value={30}>30 min</option>
-                        <option value={45}>45 min</option>
-                    </select>
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                    {['Necesito calma', 'Estoy bloqueada', 'Quiero inspirarme'].map((m) => (
-                        <button
-                            key={m}
-                            onClick={() => setMood(m)}
-                            className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${mood === m
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
-                                }`}
-                        >
-                            {m}
-                        </button>
-                    ))}
-                </div>
-
-                <button
-                    onClick={handleRefresh}
-                    className="text-sm text-blue-600 font-medium hover:text-blue-700"
-                >
-                    Actualizar
-                </button>
-            </div>
-
-            {/* Coach Message */}
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6 flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                    <Activity className="w-5 h-5 text-blue-600" />
-                </div>
-                <p className="text-blue-900 text-sm leading-relaxed italic">
-                    "{coachMessage}"
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Map */}
-                <div className="h-[300px] bg-gray-100 rounded-xl overflow-hidden relative z-0">
-                    <MapContainer
-                        center={[center.lat, center.lng]}
-                        zoom={15}
-                        style={{ height: '100%', width: '100%' }}
-                        scrollWheelZoom={false}
-                    >
-                        <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-                        <Marker position={[center.lat, center.lng]}>
-                            <Popup>Tu ubicación</Popup>
-                        </Marker>
-                        {places.map((place, idx) => (
-                            <Marker
-                                key={idx}
-                                position={[place.location.lat, place.location.lng]}
-                            >
-                                <Popup>{place.name}</Popup>
-                            </Marker>
-                        ))}
-                    </MapContainer>
-
-                    {loading && (
-                        <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-[1000]">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+            {/* Sidebar */}
+            <div className="w-1/3 bg-white shadow-xl z-10 flex flex-col">
+                <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="bg-purple-600 p-2 rounded-lg">
+                            <Activity className="w-5 h-5 text-white" />
                         </div>
-                    )}
+                        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+                            Micro Breaks Map
+                        </h1>
+                    </div>
+                    <p className="text-sm text-gray-500 ml-11">Desconecta en 20 minutos</p>
                 </div>
 
-                {/* List */}
-                <div className="space-y-3 h-[300px] overflow-y-auto pr-2">
-                    {places.map((place, idx) => (
-                        <div key={idx} className="border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-colors cursor-pointer bg-white shadow-sm">
-                            <div className="flex justify-between items-start mb-1">
-                                <div className="flex items-center gap-2">
-                                    {place.type === 'park' && <Trees className="w-4 h-4 text-green-600" />}
-                                    {place.type === 'quiet_cafe' && <Coffee className="w-4 h-4 text-orange-600" />}
-                                    <h3 className="font-semibold text-gray-900 text-sm">{place.name}</h3>
-                                </div>
-                                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                    {place.estimated_walk_time}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-500 mb-2">{place.address}</p>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-yellow-600 font-medium">★ {place.rating}</span>
-                                <button className="text-xs bg-gray-900 text-white px-3 py-1 rounded-md hover:bg-gray-800">
-                                    Ir aquí
-                                </button>
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                    {/* Controls */}
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2 block">
+                                Tiempo disponible
+                            </label>
+                            <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <Clock className="w-5 h-5 text-purple-500" />
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="60"
+                                    value={timeWindow}
+                                    onChange={(e) => setTimeWindow(parseInt(e.target.value))}
+                                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                />
+                                <span className="font-bold text-gray-700 w-12 text-right">{timeWindow} m</span>
                             </div>
                         </div>
-                    ))}
 
-                    {/* Soundtrack Section */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Soundtrack</h4>
-                        {soundtracks.map((track, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer">
-                                <Music className="w-4 h-4 text-purple-600" />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{track.title}</p>
-                                    <p className="text-xs text-gray-500">{track.description}</p>
-                                </div>
+                        <div>
+                            <label className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2 block">
+                                Mood actual
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['calmado', 'creativo', 'energico'].map((m) => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setMood(m)}
+                                        className={`p-2 rounded-lg text-sm font-medium transition-all ${mood === m
+                                            ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
+                                            }`}
+                                    >
+                                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                                    </button>
+                                ))}
                             </div>
-                        ))}
+                        </div>
+                    </div>
+
+                    {/* Coach Message */}
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100">
+                        <div className="flex gap-3">
+                            <div className="mt-1">✨</div>
+                            <p className="text-sm text-indigo-900 leading-relaxed font-medium">
+                                "{coachMessage}"
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Places List */}
+                    <div>
+                        <h3 className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">
+                            Lugares sugeridos
+                        </h3>
+                        <div className="space-y-3">
+                            {loading ? (
+                                <div className="text-center py-8 text-gray-400">Buscando lugares zen...</div>
+                            ) : (
+                                places.map(place => (
+                                    <div key={place.id} className="group bg-white p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all cursor-pointer">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="font-bold text-gray-800 group-hover:text-purple-700 transition-colors">{place.name}</h4>
+                                            <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                                {place.rating} ★
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                            {place.type === 'park' ? <Trees className="w-3 h-3" /> : <Coffee className="w-3 h-3" />}
+                                            <span>{place.type === 'park' ? 'Parque' : 'Café tranquilo'}</span>
+                                            <span>•</span>
+                                            <span>{place.estimated_walk_time || "5 min"}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-400 truncate">{place.address}</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Soundtrack */}
+                    <div>
+                        <h3 className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">
+                            Soundtrack
+                        </h3>
+                        <div className="space-y-2">
+                            {soundtracks.map((track, i) => (
+                                <div key={i} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                    <div className="bg-white p-2 rounded-full shadow-sm">
+                                        <Music className="w-4 h-4 text-pink-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-700">{track.title}</p>
+                                        <p className="text-xs text-gray-500">{track.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Map */}
+            <div className="flex-1 relative">
+                <MapContainer
+                    center={[CENTER.lat, CENTER.lng]}
+                    zoom={15}
+                    style={{ height: "100%", width: "100%" }}
+                    zoomControl={false}
+                >
+                    <TileLayer
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    />
+                    <Marker position={[CENTER.lat, CENTER.lng]}>
+                        <Popup>
+                            <div className="text-center">
+                                <p className="font-bold">Tu estás aquí</p>
+                                <p className="text-xs text-gray-500">Respira...</p>
+                            </div>
+                        </Popup>
+                    </Marker>
+                    {places.map(place => (
+                        <Marker key={place.id} position={[place.lat, place.lng]}>
+                            <Popup>
+                                <div className="text-center">
+                                    <p className="font-bold">{place.name}</p>
+                                    <p className="text-xs text-gray-500">{place.type}</p>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    ))}
+                </MapContainer>
+
+                {/* Floating Action Button */}
+                <button
+                    onClick={handleSearch}
+                    className="absolute bottom-8 right-8 bg-black text-white p-4 rounded-full shadow-2xl hover:scale-105 transition-transform z-[1000] flex items-center gap-2"
+                >
+                    <Activity className="w-5 h-5" />
+                    <span className="font-bold">Actualizar Mapa</span>
+                </button>
             </div>
         </div>
     );

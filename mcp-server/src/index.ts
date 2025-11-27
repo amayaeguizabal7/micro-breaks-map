@@ -98,6 +98,12 @@ async function queryOverpass(lat: number, lng: number, radius: number, type: 'pa
 
 // --- Express Server Setup ---
 
+// Serve static assets from the UI build
+const UI_BUILD_PATH = path.join(__dirname, "../../ui/dist");
+if (fs.existsSync(UI_BUILD_PATH)) {
+    app.use("/assets", express.static(path.join(UI_BUILD_PATH, "assets")));
+}
+
 app.get("/", (req, res) => {
     res.send("Micro Breaks MCP Server is running 🚀. Use POST /mcp for ChatGPT connection.");
 });
@@ -120,7 +126,7 @@ app.post("/mcp", async (req, res) => {
                     protocolVersion: "2024-11-05",
                     capabilities: {
                         tools: {},
-                        resources: {}
+                        resources: {} // Declare resources capability
                     },
                     serverInfo: {
                         name: "Micro Breaks MCP Server",
@@ -128,6 +134,71 @@ app.post("/mcp", async (req, res) => {
                     }
                 }
             });
+        } else if (method === "resources/list") {
+            res.json({
+                jsonrpc: "2.0",
+                id: requestId,
+                result: {
+                    resources: [
+                        {
+                            uri: "ui://widget/map",
+                            name: "Micro Breaks Map Widget",
+                            description: "Mapa interactivo con los lugares sugeridos",
+                            mimeType: "text/html+skybridge"
+                        }
+                    ]
+                }
+            });
+        } else if (method === "resources/read") {
+            const uri = params.uri;
+            if (uri === "ui://widget/map") {
+                // Read the HTML file
+                const htmlPath = path.join(UI_BUILD_PATH, "index.html");
+                let htmlContent = "";
+
+                try {
+                    htmlContent = fs.readFileSync(htmlPath, "utf-8");
+
+                    // Inject data and fix asset paths
+                    // We assume the build uses relative paths like "./assets/..."
+                    // We replace them with absolute paths based on the server URL if needed, 
+                    // but since we serve /assets, relative paths might work if the base is set correctly.
+                    // However, ChatGPT loads this in an iframe/webview, so absolute URLs are safer.
+                    // For simplicity in this environment, we'll try to rely on the /assets mount.
+
+                    // Inject the last search results
+                    const injection = `
+                    <script>
+                        window.__INITIAL_DATA__ = ${JSON.stringify(lastSearchResults)};
+                    </script>
+                    `;
+                    htmlContent = htmlContent.replace("</body>", injection + "</body>");
+
+                } catch (e) {
+                    console.error("Error reading UI index.html:", e);
+                    htmlContent = "<h1>Error loading widget</h1>";
+                }
+
+                res.json({
+                    jsonrpc: "2.0",
+                    id: requestId,
+                    result: {
+                        contents: [
+                            {
+                                uri: "ui://widget/map",
+                                mimeType: "text/html+skybridge",
+                                text: htmlContent
+                            }
+                        ]
+                    }
+                });
+            } else {
+                res.json({
+                    jsonrpc: "2.0",
+                    id: requestId,
+                    error: { code: -32602, message: "Resource not found" }
+                });
+            }
         } else if (method === "tools/list") {
             res.json({
                 jsonrpc: "2.0",
@@ -147,6 +218,12 @@ app.post("/mcp", async (req, res) => {
                                     mood: { type: "string", description: "Estado de ánimo (ej: calmado, creativo)" },
                                 },
                                 required: ["lat", "lng"],
+                            },
+                            // Link this tool to the widget
+                            _meta: {
+                                "openai/outputTemplate": "ui://widget/map",
+                                "openai/toolInvocation/invoking": "Buscando lugares...",
+                                "openai/toolInvocation/invoked": "Lugares encontrados"
                             }
                         },
                         {
@@ -225,7 +302,13 @@ app.post("/mcp", async (req, res) => {
                     ...cafes.slice(0, 5).map((c: any) => formatPlace(c, 'quiet_cafe'))
                 ];
 
-                result = { content: [{ type: "text", text: JSON.stringify(formattedPlaces) }] };
+                // Store results for widget
+                lastSearchResults = formattedPlaces;
+
+                result = {
+                    content: [{ type: "text", text: `Encontré ${formattedPlaces.length} lugares cerca de ti.` }],
+                    structuredContent: { places: formattedPlaces }
+                };
 
             } else if (toolName === "generate_walk_route") {
                 const { lat, lng, timeWindowMinutes } = GenerateWalkRouteSchema.parse(args);
