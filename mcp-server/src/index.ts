@@ -104,9 +104,12 @@ async function queryOverpass(lat: number, lng: number, radius: number, type: 'pa
 // --- Express Server Setup ---
 
 // Serve static assets from the UI build
-const UI_BUILD_PATH = path.join(__dirname, "../../ui/dist");
+// Serve static assets from the UI build (now copied to local public dir)
+const UI_BUILD_PATH = path.join(__dirname, "../public");
 if (fs.existsSync(UI_BUILD_PATH)) {
     app.use("/assets", express.static(path.join(UI_BUILD_PATH, "assets")));
+} else {
+    console.error("UI Build Path not found:", UI_BUILD_PATH);
 }
 
 app.get("/", (req, res) => {
@@ -164,12 +167,18 @@ app.post("/mcp", async (req, res) => {
                 try {
                     htmlContent = fs.readFileSync(htmlPath, "utf-8");
 
-                    // Inject data and fix asset paths
-                    // We assume the build uses relative paths like "./assets/..."
-                    // We replace them with absolute paths based on the server URL if needed, 
-                    // but since we serve /assets, relative paths might work if the base is set correctly.
-                    // However, ChatGPT loads this in an iframe/webview, so absolute URLs are safer.
-                    // For simplicity in this environment, we'll try to rely on the /assets mount.
+                    // FIX: Replace relative paths with absolute URLs for ChatGPT
+                    // ChatGPT renders the HTML content directly, so relative paths like "/assets/..." 
+                    // won't resolve to our server unless we make them absolute.
+                    const BASE_URL = process.env.RENDER_EXTERNAL_URL || "https://micro-breaks-map.onrender.com";
+
+                    htmlContent = htmlContent.replace(
+                        /src="\/assets\//g,
+                        `src="${BASE_URL}/assets/`
+                    ).replace(
+                        /href="\/assets\//g,
+                        `href="${BASE_URL}/assets/`
+                    );
 
                     // Inject the last search results
                     const injection = `
