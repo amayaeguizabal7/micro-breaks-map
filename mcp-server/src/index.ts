@@ -10,8 +10,13 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import path from "path";
+import fs from "fs";
 
 dotenv.config();
+
+// Global variable to store last search results for widget injection
+let lastSearchResults: any[] = [];
 
 const app = express();
 app.use(cors());
