@@ -9,6 +9,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -279,9 +280,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // --- Express Server Setup for SSE ---
 
-// Store active transports by sessionId (if we could extract it) or just keep the latest for now
-// Ideally we would parse the sessionId from the URL in /messages
-let transport: SSEServerTransport;
+// Store active transports by sessionId
+const transports = new Map<string, SSEServerTransport>();
 
 app.get("/", (req, res) => {
     res.send("Micro Breaks MCP Server is running 🚀. Use /sse for ChatGPT connection.");
@@ -295,8 +295,12 @@ app.get("/sse", async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disables Nginx buffering on Render
 
-    // Create new transport
-    transport = new SSEServerTransport("/messages", res);
+    const sessionId = crypto.randomUUID();
+    console.log(`Created session: ${sessionId}`);
+
+    // Create new transport with session-specific endpoint
+    const transport = new SSEServerTransport(`/messages?sessionId=${sessionId}`, res);
+    transports.set(sessionId, transport);
 
     // Connect the server to this transport
     await server.connect(transport);
@@ -311,19 +315,24 @@ app.get("/sse", async (req, res) => {
     }, 15000);
 
     req.on("close", () => {
-        console.log("SSE connection closed");
+        console.log(`SSE connection closed for session: ${sessionId}`);
+        transports.delete(sessionId);
         clearInterval(keepAlive);
-        // Optional: server.close() if we want to clean up, but for now keep it simple
     });
 });
 
 app.post("/messages", async (req, res) => {
-    console.log("Received message on /messages");
+    const sessionId = req.query.sessionId as string;
+    console.log(`Received message for session: ${sessionId}`);
+
+    const transport = transports.get(sessionId);
+
     if (!transport) {
-        console.error("No active transport");
-        res.sendStatus(400);
+        console.error(`No active transport for session: ${sessionId}`);
+        res.status(404).send("Session not found");
         return;
     }
+
     try {
         await transport.handlePostMessage(req, res);
     } catch (error) {
