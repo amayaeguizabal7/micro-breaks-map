@@ -290,6 +290,11 @@ app.get("/", (req, res) => {
 app.get("/sse", async (req, res) => {
     console.log("New SSE connection");
 
+    // Critical headers for Render/Nginx buffering
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disables Nginx buffering on Render
+
     // Create new transport
     transport = new SSEServerTransport("/messages", res);
 
