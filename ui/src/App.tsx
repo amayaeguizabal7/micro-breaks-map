@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Clock, Music, Coffee, Trees, Activity } from 'lucide-react';
+import { Clock, Music, Coffee, Trees, Activity, Maximize2 } from 'lucide-react';
 import L from 'leaflet';
 
 // Fix for default marker icon in Leaflet with Webpack/Vite
@@ -47,6 +47,9 @@ interface WidgetData {
 declare global {
     interface Window {
         __INITIAL_DATA__?: WidgetData | Place[]; // Handle legacy array or new object
+        openai?: {
+            requestDisplayMode?: (mode: 'inline' | 'fullscreen' | 'picture-in-picture') => Promise<void>;
+        };
     }
 }
 
@@ -64,25 +67,63 @@ function App() {
     const [mood, setMood] = useState('calmado');
 
     // Initialize from injected data or mock
-    const [places] = useState<Place[]>(() => {
+    const [places, setPlaces] = useState<Place[]>(() => {
         const data = window.__INITIAL_DATA__;
         if (Array.isArray(data)) return data; // Legacy support
         if (data && data.places) return data.places;
         return MOCK_PLACES;
     });
 
-    const [route] = useState<RoutePoint[] | null>(() => {
+    const [route, setRoute] = useState<RoutePoint[] | null>(() => {
         const data = window.__INITIAL_DATA__;
         if (!Array.isArray(data) && data && data.route) return data.route;
         return null;
     });
 
-    const [loading, setLoading] = useState(false); // Added loading state
+    const [loading, setLoading] = useState(false);
     const [coachMessage] = useState("Amaya, respira 2 min. Aquí tienes un paseíto rápido con árboles y luz cálida.");
     const [soundtracks] = useState<Soundtrack[]>([
         { title: "Nature Sounds", description: "Sonidos de bosque y lluvia" },
         { title: "Piano Chill", description: "Piano suave para desconectar" }
     ]);
+
+    // Fetch data from MCP server API
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/widget-data');
+                const data = await response.json();
+
+                if (data.places && data.places.length > 0) {
+                    // Transform API data to match UI format
+                    const transformedPlaces = data.places.map((p: any) => ({
+                        id: parseInt(p.place_id) || Math.random(),
+                        name: p.name,
+                        type: p.type === 'park' ? 'park' : 'cafe',
+                        lat: p.location.lat,
+                        lng: p.location.lng,
+                        address: p.address,
+                        rating: p.rating,
+                        estimated_walk_time: p.estimated_walk_time
+                    }));
+                    setPlaces(transformedPlaces);
+                }
+
+                if (data.route && data.route.length > 0) {
+                    setRoute(data.route);
+                }
+            } catch (error) {
+                console.log('Could not fetch data from MCP server, using mock data');
+            }
+        };
+
+        // Initial fetch
+        fetchData();
+
+        // Poll for updates every 3 seconds
+        const interval = setInterval(fetchData, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Mock loading effect
     const handleSearch = () => {
@@ -92,6 +133,19 @@ function App() {
             // In real app, this would trigger a new MCP tool call via the ChatGPT context
             console.log("Searching with", { timeWindow, mood });
         }, 1000);
+    };
+
+    // Request fullscreen mode
+    const handleFullscreen = async () => {
+        if (window.openai?.requestDisplayMode) {
+            try {
+                await window.openai.requestDisplayMode('fullscreen');
+            } catch (error) {
+                console.error('Failed to request fullscreen:', error);
+            }
+        } else {
+            console.log('window.openai not available (running in dev mode)');
+        }
     };
 
     return (
@@ -141,8 +195,8 @@ function App() {
                                         key={m}
                                         onClick={() => setMood(m)}
                                         className={`p-2 rounded-lg text-sm font-medium transition-all ${mood === m
-                                                ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
-                                                : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
+                                            ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
                                             }`}
                                     >
                                         {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -260,14 +314,24 @@ function App() {
 
                 </MapContainer>
 
-                {/* Floating Action Button */}
-                <button
-                    onClick={handleSearch}
-                    className="absolute bottom-8 right-8 bg-black text-white p-4 rounded-full shadow-2xl hover:scale-105 transition-transform z-[1000] flex items-center gap-2"
-                >
-                    <Activity className="w-5 h-5" />
-                    <span className="font-bold">Actualizar Mapa</span>
-                </button>
+                {/* Floating Action Buttons */}
+                <div className="absolute bottom-8 right-8 flex flex-col gap-3 z-[1000]">
+                    <button
+                        onClick={handleFullscreen}
+                        className="bg-purple-600 text-white p-4 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center gap-2"
+                        title="Pantalla completa"
+                    >
+                        <Maximize2 className="w-5 h-5" />
+                        <span className="font-bold">Pantalla Completa</span>
+                    </button>
+                    <button
+                        onClick={handleSearch}
+                        className="bg-black text-white p-4 rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center gap-2"
+                    >
+                        <Activity className="w-5 h-5" />
+                        <span className="font-bold">Actualizar Mapa</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

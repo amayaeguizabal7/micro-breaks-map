@@ -97,6 +97,11 @@ app.get("/", (req, res) => {
     res.send("Micro Breaks MCP Server is running 🚀. Use POST /mcp for ChatGPT connection.");
 });
 
+// API endpoint for widget to fetch current data
+app.get("/api/widget-data", (req, res) => {
+    res.json(lastWidgetData);
+});
+
 app.post("/mcp", async (req, res) => {
     const request = req.body;
     const method = request.method;

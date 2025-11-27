@@ -2,6 +2,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy mcp-server files
 COPY package*.json ./
 RUN npm install
 
