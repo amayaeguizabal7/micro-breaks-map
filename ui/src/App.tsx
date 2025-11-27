@@ -1,4 +1,3 @@
-```
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -141,11 +140,10 @@ function App() {
                                     <button
                                         key={m}
                                         onClick={() => setMood(m)}
-                                        className={`p - 2 rounded - lg text - sm font - medium transition - all ${
-    mood === m
-    ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
-    : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
-} `}
+                                        className={`p-2 rounded-lg text-sm font-medium transition-all ${mood === m
+                                                ? 'bg-purple-100 text-purple-700 border-2 border-purple-200'
+                                                : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-200'
+                                            }`}
                                     >
                                         {m.charAt(0).toUpperCase() + m.slice(1)}
                                     </button>
