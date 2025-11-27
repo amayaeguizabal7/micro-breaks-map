@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Clock, Music, Coffee, Trees, Activity } from 'lucide-react';
 import L from 'leaflet';
@@ -34,6 +34,22 @@ interface Soundtrack {
     description: string;
 }
 
+interface RoutePoint {
+    lat: number;
+    lng: number;
+}
+
+interface WidgetData {
+    places?: Place[];
+    route?: RoutePoint[];
+}
+
+declare global {
+    interface Window {
+        __INITIAL_DATA__?: WidgetData | Place[]; // Handle legacy array or new object
+    }
+}
+
 // Mock Data for initial state or fallback
 const MOCK_PLACES: Place[] = [
     { id: 1, name: "Parque del Retiro", type: "park", lat: 40.4152606, lng: -3.6844995, address: "Plaza de la Independencia, 7", rating: 4.8, estimated_walk_time: "10 min" },
@@ -46,7 +62,21 @@ const CENTER = { lat: 40.4152, lng: -3.6845 };
 function App() {
     const [timeWindow, setTimeWindow] = useState(20);
     const [mood, setMood] = useState('calmado');
-    const [places] = useState<Place[]>(MOCK_PLACES);
+
+    // Initialize from injected data or mock
+    const [places, setPlaces] = useState<Place[]>(() => {
+        const data = window.__INITIAL_DATA__;
+        if (Array.isArray(data)) return data; // Legacy support
+        if (data && data.places) return data.places;
+        return MOCK_PLACES;
+    });
+
+    const [route, setRoute] = useState<RoutePoint[] | null>(() => {
+        const data = window.__INITIAL_DATA__;
+        if (!Array.isArray(data) && data && data.route) return data.route;
+        return null;
+    });
+
     const [loading, setLoading] = useState(false); // Added loading state
     const [coachMessage] = useState("Amaya, respira 2 min. Aquí tienes un paseíto rápido con árboles y luz cálida.");
     const [soundtracks] = useState<Soundtrack[]>([
@@ -204,6 +234,8 @@ function App() {
                             </div>
                         </Popup>
                     </Marker>
+
+                    {/* Render Places */}
                     {places.map(place => (
                         <Marker key={place.id} position={[place.lat, place.lng]}>
                             <Popup>
@@ -214,6 +246,18 @@ function App() {
                             </Popup>
                         </Marker>
                     ))}
+
+                    {/* Render Route */}
+                    {route && (
+                        <Polyline
+                            positions={route.map(p => [p.lat, p.lng])}
+                            color="#9333ea"
+                            weight={5}
+                            opacity={0.7}
+                            dashArray="10, 10"
+                        />
+                    )}
+
                 </MapContainer>
 
                 {/* Floating Action Button */}
