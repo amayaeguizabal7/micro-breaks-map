@@ -283,6 +283,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Ideally we would parse the sessionId from the URL in /messages
 let transport: SSEServerTransport;
 
+app.get("/", (req, res) => {
+    res.send("Micro Breaks MCP Server is running 🚀. Use /sse for ChatGPT connection.");
+});
+
 app.get("/sse", async (req, res) => {
     console.log("New SSE connection");
 
