@@ -18,6 +18,69 @@ dotenv.config();
 // Global variable to store last search results for widget injection
 let lastWidgetData: any = {};
 
+// --- Tool Definitions ---
+
+const FindBreakSpotsSchema = z.object({
+    lat: z.number(),
+    lng: z.number(),
+    maxDistanceMeters: z.number().default(900),
+    timeWindowMinutes: z.number().default(30),
+    mood: z.string().optional(),
+});
+
+const GenerateWalkRouteSchema = z.object({
+    lat: z.number(),
+    lng: z.number(),
+    timeWindowMinutes: z.number(),
+    preference: z.enum(["más verde", "más ciudad", "mixto"]).optional(),
+});
+
+const SuggestSoundtrackSchema = z.object({
+    mood: z.string(),
+});
+
+const GenerateCoachMessageSchema = z.object({
+    name: z.string().optional(),
+    mood: z.string(),
+    experience_info: z.string(),
+});
+
+// --- Helpers ---
+
+async function queryOverpass(lat: number, lng: number, radius: number, type: 'park' | 'cafe') {
+    let query = "";
+    if (type === 'park') {
+        query = `
+      [out:json];
+      (
+        node["leisure"="park"](around:${radius},${lat},${lng});
+        way["leisure"="park"](around:${radius},${lat},${lng});
+        relation["leisure"="park"](around:${radius},${lat},${lng});
+      );
+      out center;
+    `;
+    } else if (type === 'cafe') {
+        query = `
+      [out:json];
+      (
+        node["amenity"="cafe"](around:${radius},${lat},${lng});
+        way["amenity"="cafe"](around:${radius},${lat},${lng});
+      );
+      out center;
+    `;
+    }
+
+    try {
+        const response = await axios.post("https://overpass-api.de/api/interpreter", query, {
+            headers: { "Content-Type": "text/plain" }
+        });
+        return response.data.elements || [];
+    } catch (error) {
+        console.error("Overpass API Error:", error);
+        return [];
+    }
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
